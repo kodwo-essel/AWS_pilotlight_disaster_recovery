@@ -233,3 +233,42 @@ module "s3" {
     bucket_prefix = var.s3_bucket_prefix
   
 }
+
+module "ecr" {
+  source         = "./modules/ecr"
+  providers = {
+    aws = aws.secondary
+  }
+  name           = var.ecr_name
+  region         = var.secondary_region
+  docker_context = "./modules/lambda/function"
+  tags = {
+    Project = "Failover"
+    Env     = "prod"
+  }
+}
+
+
+
+# LAMBDA FUNCTION
+module "failover_lambda" {
+  source = "./modules/lambda"
+
+  providers = {
+    aws = aws.secondary
+  }
+
+  function_name = "failover-checker"
+  image_uri     = module.ecr.image_url
+
+  environment_variables = {
+    APP_HEALTH_URL        = module.primary_alb.alb_dns_name
+    RETRY_COUNT           = "3"
+    RETRY_INTERVAL        = "60"
+    ASG_NAME              = module.secondary_asg.asg_name
+    RDS_REPLICA_IDENTIFIER = module.rds.read_replica_id
+    # AWS_REGION            = var.secondary_region
+  }
+
+  depends_on = [ module.primary_asg, module.secondary_asg, module.ecr, module.rds ]
+}

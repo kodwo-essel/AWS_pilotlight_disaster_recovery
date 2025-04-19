@@ -35,3 +35,14 @@ aws/
 *.aws-sdk
 *.aws-session
 *.pem
+
+
+# Virtual environment
+venv/
+.venv/
+# Python specific
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/

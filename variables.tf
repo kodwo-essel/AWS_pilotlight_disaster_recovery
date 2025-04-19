@@ -106,3 +106,8 @@ variable "s3_bucket_prefix" {
 variable "replica_ami_name" {
   type = string
 }
+
+variable "ecr_name" {
+  type = string
+  
+}
