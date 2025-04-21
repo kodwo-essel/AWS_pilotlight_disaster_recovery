@@ -266,8 +266,9 @@ module "failover_lambda" {
     RETRY_COUNT           = "3"
     RETRY_INTERVAL        = "60"
     ASG_NAME              = module.secondary_asg.asg_name
-    RDS_REPLICA_IDENTIFIER = module.rds.read_replica_id
-    # AWS_REGION            = var.secondary_region
+    RDS_REPLICA_IDENTIFIER = module.rds.read_replica_identifier
+    SECONDARY_REGION_NAME  = var.secondary_region
+    PRIMARY_REGION_NAME    = var.primary_region
   }
 
   depends_on = [ module.primary_asg, module.secondary_asg, module.ecr, module.rds ]

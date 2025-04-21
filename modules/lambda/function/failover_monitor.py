@@ -8,7 +8,8 @@ import boto3
 http = urllib3.PoolManager()
 
 # Environment variables
-REGION_NAME = os.environ.get("AWS_REGION", "eu-west-2")  # fallback optional
+SECONDARY_REGION_NAME = os.environ.get("SECONDARY_REGION_NAME", "eu-west-2")  # fallback optional
+PRIMARY_REGION_NAME = os.environ.get('PRIMARY_REGION_NAME', 'eu-west-1')
 APP_HEALTH_URL = os.environ["APP_HEALTH_URL"]
 RETRY_COUNT = int(os.environ.get("RETRY_COUNT", 3))
 RETRY_INTERVAL = int(os.environ.get("RETRY_INTERVAL", 10))
@@ -16,8 +17,8 @@ ASG_NAME = os.environ["ASG_NAME"]
 RDS_REPLICA_IDENTIFIER = os.environ["RDS_REPLICA_IDENTIFIER"]
 
 # AWS clients
-asg_client = boto3.client('autoscaling', region_name=REGION_NAME)
-rds_client = boto3.client('rds', region_name=REGION_NAME)
+asg_client = boto3.client('autoscaling', region_name=SECONDARY_REGION_NAME)
+rds_client = boto3.client('rds', region_name=SECONDARY_REGION_NAME)
 
 def ping():
     try:

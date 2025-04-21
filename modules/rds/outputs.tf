@@ -6,6 +6,10 @@ output "read_replica_id" {
   value = aws_db_instance.read_replica.id
 }
 
+output "read_replica_identifier" {
+  value = aws_db_instance.read_replica.identifier
+}
+
 output "rds_endpoint" {
   value = aws_db_instance.primary.endpoint
 }
