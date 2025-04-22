@@ -124,3 +124,37 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
     }
   }
 }
+
+
+# IAM POLICY FOR PUBLIC READ ACCESS ON 'uploads' FOLDER IN BOTH BUCKETS
+resource "aws_iam_policy" "public_read_uploads" {
+  name        = "${var.bucket_prefix}-public-read-uploads"
+  description = "Allow public read access to the uploads folder in both source and destination buckets"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadUploadsSource"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "arn:aws:s3:::${aws_s3_bucket.source.bucket}/uploads/*"
+      },
+      {
+        Sid       = "PublicReadUploadsDestination"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "arn:aws:s3:::${aws_s3_bucket.destination.bucket}/uploads/*"
+      }
+    ]
+  })
+}
+
+# ATTACH THE PUBLIC READ POLICY TO THE S3 BUCKET
+resource "aws_iam_policy_attachment" "public_read_uploads_attachment" {
+  name       = "${var.bucket_prefix}-public-read-uploads-attachment"
+  policy_arn = aws_iam_policy.public_read_uploads.arn
+  roles      = [aws_iam_role.replication_role.name]
+}
