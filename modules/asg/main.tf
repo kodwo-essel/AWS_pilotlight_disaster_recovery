@@ -156,11 +156,11 @@ resource "aws_launch_template" "this" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    ecr_name = "${var.ecr_name}",
-    FRONTEND_IMAGE_URI = "${var.frontend_image_uri}",
-    BACKEND_IMAGE_URI = "${var.backend_image_uri}",
-    S3_BUCKET_NAME="${var.s3_bucket_name}",
-    PATH_TO_DOCKER_COMPOSE="${var.path_to_docker_compose}"
+    ecr_name = var.ecr_name,
+    FRONTEND_IMAGE_URI = var.frontend_image_uri,
+    BACKEND_IMAGE_URI = var.backend_image_uri,
+    S3_BUCKET_NAME=var.s3_bucket_name,
+    PATH_TO_DOCKER_COMPOSE=var.path_to_docker_compose
   }))
 
   tag_specifications {
