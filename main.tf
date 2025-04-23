@@ -121,21 +121,6 @@ resource "null_resource" "terminate_ec2" {
   }
 }
 
-
-# SECONDARY EC2 INSTANCE
-# module "secondary_ec2" {
-#     source = "./modules/ec2"
-#     providers = {
-#         aws = aws.secondary
-#     }
-#     name = var.ec2_name
-#     key_name        = var.keypair_name
-#     ami_id          = var.secondary_ami_id
-#     instance_type   = var.instance_type
-#     vpc_id = module.secondary_vpc.vpc_id
-#     subnet_id       = module.secondary_vpc.public_subnet_ids[0]
-# }
-
 # PRIMARY AUTO SCALING GROUP
 module "primary_asg" {
     source = "./modules/asg"
@@ -143,17 +128,24 @@ module "primary_asg" {
         aws = aws.primary
     }
     name = var.ec2_name
-    key_name        = var.keypair_name
+    # key_name        = var.keypair_name
     ami_id          = module.ami_from_ec2.primary_ami_id
     instance_type   = var.instance_type
     vpc_id = module.primary_vpc.vpc_id
     subnet_ids       = module.primary_vpc.public_subnet_ids
+    ecr_name = var.ecr_name
+    frontend_image_uri = module.frontend_ecr.image_url
+    backend_image_uri = module.backend_ecr.image_url
+    s3_bucket_name = module.s3.source_bucket
+    path_to_docker_compose = "docker-compose.yml"
 
     desired_capacity = var.primary_asg_desired_capacity
     min_size         = var.primary_asg_min_size
     max_size         = var.primary_asg_max_size
 
     target_group_arns = [module.primary_alb.target_group_arn]
+
+    depends_on = [ module.primary_parameter_store, module.rds, module.frontend_ecr, module.backend_ecr, module.s3, aws_s3_object.docker_compose ]
 
 }
 
@@ -164,17 +156,24 @@ module "secondary_asg" {
         aws = aws.secondary
     }
     name = var.ec2_name
-    key_name        = var.keypair_name
+    # key_name        = var.keypair_name
     ami_id          = module.ami_from_ec2.secondary_ami_id
     instance_type   = var.instance_type
     vpc_id = module.secondary_vpc.vpc_id
     subnet_ids       = module.secondary_vpc.public_subnet_ids
+    ecr_name = var.ecr_name
+    frontend_image_uri = module.frontend_ecr.image_url
+    backend_image_uri = module.backend_ecr.image_url
+    s3_bucket_name = module.s3.replica_bucket
+    path_to_docker_compose = "docker-compose.yml"
 
     desired_capacity = var.secondary_asg_desired_capacity
     min_size         = var.secondary_asg_min_size
     max_size         = var.secondary_asg_max_size
 
     target_group_arns = [module.secondary_alb.target_group_arn]
+
+    depends_on = [ module.secondary_parameter_store, module.rds, module.frontend_ecr, module.backend_ecr, module.s3, aws_s3_object.docker_compose ]
 }
 
 # PRIMARY APPLICATION LOAD BALANCER
@@ -234,6 +233,17 @@ module "s3" {
   
 }
 
+# PUSH DOCKER COMPOSE FILE TO S3
+resource "aws_s3_object" "docker_compose" {
+  provider = aws.primary
+
+  bucket = module.s3.source_bucket
+  key    = "docker-compose.yml"
+  source = "./docker-compose.yml"
+
+  depends_on = [ module.s3 ]
+}
+
 module "ecr" {
   source         = "./modules/ecr"
   providers = {
@@ -248,7 +258,168 @@ module "ecr" {
   }
 }
 
+module "frontend_ecr" {
+  source         = "./modules/ecr"
+  providers = {
+    aws = aws.secondary
+  }
+  name           = "${var.ecr_name}-frontend"
+  region         = var.primary_region
+  docker_context = "./frontend"
+  tags = {
+    Project = "Failover"
+    Env     = "prod"
+  }
+}
 
+module "backend_ecr" {
+  source         = "./modules/ecr"
+  providers = {
+    aws = aws.secondary
+  }
+  name           = "${var.ecr_name}-backend"
+  region         = var.primary_region
+  docker_context = "./backend"
+  tags = {
+    Project = "Failover"
+    Env     = "prod"
+  }
+}
+
+
+# PRIMARY PARAMETER STORE FOR CREDENTIALS STORAGE
+module "primary_parameter_store" {
+  source = "./modules/parameter_store"
+  providers = {
+    aws = aws.primary
+  }
+
+  parameters = [
+    # React Frontend Parameters
+    {
+      name        = "/${var.ecr_name}-frontend/VITE_PUBLIC_API_URL"
+      type        = "String"
+      value       = var.vite_public_api_url
+      tags        = { Component = "frontend" }
+    },
+    # Spring Boot Backend Parameters
+    {
+      name        = "/${var.ecr_name}-backend/S3_BUCKET_REGION"
+      type        = "String"
+      value       = var.primary_region # Replace with your region
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/S3_BUCKET_NAME"
+      type        = "String"
+      value       = module.s3.source_bucket
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_HOST"
+      type        = "String"
+      value       = module.rds.rds_endpoint
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_PORT"
+      type        = "String"
+      value       = var.rds_port
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_NAME"
+      type        = "String"
+      value       = var.rds_name
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_USERNAME"
+      type        = "String"
+      value       = var.rds_db_username
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_PASSWORD"
+      type        = "SecureString"
+      value       = var.rds_db_password
+      key_id      = "alias/aws/ssm"
+      tags        = { Component = "backend" }
+    }
+  ]
+
+  default_tags = {
+    Project = "Failover"
+    ManagedBy = "Terraform"
+  }
+}
+
+# SECONDARY PARAMETER STORE FOR CREDENTIALS STORAGE
+module "secondary_parameter_store" {
+  source = "./modules/parameter_store"
+  providers = {
+    aws = aws.secondary
+  }
+
+  parameters = [
+    # React Frontend Parameters
+    {
+      name        = "/${var.ecr_name}-frontend/VITE_PUBLIC_API_URL"
+      type        = "String"
+      value       = var.vite_public_api_url
+      tags        = { Component = "frontend" }
+    },
+    # Spring Boot Backend Parameters
+    {
+      name        = "/${var.ecr_name}-backend/S3_BUCKET_REGION"
+      type        = "String"
+      value       = var.secondary_region
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/S3_BUCKET_NAME"
+      type        = "String"
+      value       = module.s3.replica_bucket
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_HOST"
+      type        = "String"
+      value       = module.rds.read_replica_endpoint
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_PORT"
+      type        = "String"
+      value       = var.rds_port
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_NAME"
+      type        = "String"
+      value       = var.rds_name
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_USERNAME"
+      type        = "String"
+      value       = var.rds_db_username
+      tags        = { Component = "backend" }
+    },
+    {
+      name        = "/${var.ecr_name}-backend/DB_PASSWORD"
+      type        = "SecureString"
+      value       = var.rds_db_password
+      key_id      = "alias/aws/ssm"
+      tags        = { Component = "backend" }
+    }
+  ]
+
+  default_tags = {
+    Project = "Failover"
+    ManagedBy = "Terraform"
+  }
+}
 
 # LAMBDA FUNCTION
 module "failover_lambda" {

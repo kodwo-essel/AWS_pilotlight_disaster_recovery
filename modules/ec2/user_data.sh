@@ -27,12 +27,13 @@ echo \
 # Update package list again
 sudo apt-get update -y
 
-# Install Docker Engine
+# Install Docker Engine and Docker Compose Plugin
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Start Docker
 sudo systemctl start docker
 sudo systemctl enable docker
 
-# Run nginx container
-sudo docker run -d -p 80:80 --name nginx --restart unless-stopped nginx
+# Verify Docker and Docker Compose installation
+docker --version
+docker compose version

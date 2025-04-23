@@ -31,10 +31,10 @@ variable "ec2_name" {
   
 }
 
-variable "keypair_name" {
-  type = string
+# variable "keypair_name" {
+#   type = string
   
-}
+# }
 
 variable "instance_type" {
   type = string
@@ -110,4 +110,12 @@ variable "replica_ami_name" {
 variable "ecr_name" {
   type = string
   
+}
+
+variable "vite_public_api_url" {
+  type = string
+}
+
+variable "rds_port" {
+  type = string
 }

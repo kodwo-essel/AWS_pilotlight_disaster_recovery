@@ -13,10 +13,10 @@ variable "instance_type" {
   type        = string
 }
 
-variable "key_name" {
-  description = "Key pair name"
-  type        = string
-}
+# variable "key_name" {
+#   description = "Key pair name"
+#   type        = string
+# }
 
 variable "vpc_id" {
   description = "VPC ID"
@@ -47,4 +47,24 @@ variable "target_group_arns" {
   description = "List of ALB target group ARNs (optional)"
   type        = list(string)
   default     = []
+}
+
+
+variable "ecr_name" {
+  type = string
+}
+variable "frontend_image_uri" {
+  type = string
+}
+variable "backend_image_uri" {
+  type = string
+  
+}
+
+variable "s3_bucket_name" {
+  type = string
+}
+
+variable "path_to_docker_compose" {
+  type = string
 }
