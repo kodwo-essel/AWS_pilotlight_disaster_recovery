@@ -68,3 +68,7 @@ variable "s3_bucket_name" {
 variable "path_to_docker_compose" {
   type = string
 }
+
+variable "iam_role_name" {
+  type = string
+}

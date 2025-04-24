@@ -1,24 +1,3 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-
-provider "aws" {
-    alias = "primary"
-    region = var.primary_region 
-}
-
-provider "aws" {
-    alias = "secondary"
-    region = var.secondary_region
-  
-}
-
 # PRIMARY VPC SETUP
 module "primary_vpc" {
     source = "./modules/vpc"
@@ -44,13 +23,13 @@ module "secondary_vpc" {
 }
 
 # PRIMARY EC2 INSTANCE FOR AMI CREATION
-data "aws_ami" "ubuntu" {
-  provider = aws.primary
+data "aws_ami" "amazon_linux" {
+  
   most_recent = true
-  owners      = ["099720109477"]  # Ubuntu owner ID
+  owners      = ["amazon"]
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-*"]
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
 }
 
@@ -82,7 +61,7 @@ module "ec2" {
     }
     name = var.ec2_name
     # key_name        = var.keypair_name
-    ami_id          = data.aws_ami.ubuntu.id
+    ami_id          = data.aws_ami.amazon_linux.id
     instance_type   = var.instance_type
     vpc_id = module.primary_vpc.vpc_id
     subnet_id       = module.primary_vpc.public_subnet_ids[0]
@@ -121,6 +100,15 @@ resource "null_resource" "terminate_ec2" {
   }
 }
 
+# IAM ROLE FOR AUTO SCALING GROUP
+module "asg_iam_role" {
+  source = "./modules/asg_iam_role"
+  providers = {
+    aws = aws.primary
+  }
+  name = var.ec2_name
+  
+}
 # PRIMARY AUTO SCALING GROUP
 module "primary_asg" {
     source = "./modules/asg"
@@ -138,6 +126,7 @@ module "primary_asg" {
     backend_image_uri = module.backend_ecr.image_url
     s3_bucket_name = module.s3.source_bucket
     path_to_docker_compose = "docker-compose.yml"
+    iam_role_name = module.asg_iam_role.role_name
 
     desired_capacity = var.primary_asg_desired_capacity
     min_size         = var.primary_asg_min_size
@@ -162,10 +151,11 @@ module "secondary_asg" {
     vpc_id = module.secondary_vpc.vpc_id
     subnet_ids       = module.secondary_vpc.public_subnet_ids
     ecr_name = var.ecr_name
-    frontend_image_uri = module.frontend_ecr.image_url
-    backend_image_uri = module.backend_ecr.image_url
+    frontend_image_uri = module.ecr_replication.replica_ecr_uris.frontend
+    backend_image_uri = module.ecr_replication.replica_ecr_uris.backend
     s3_bucket_name = module.s3.replica_bucket
     path_to_docker_compose = "docker-compose.yml"
+    iam_role_name = module.asg_iam_role.role_name
 
     desired_capacity = var.secondary_asg_desired_capacity
     min_size         = var.secondary_asg_min_size
@@ -247,10 +237,11 @@ resource "aws_s3_object" "docker_compose" {
 module "ecr" {
   source         = "./modules/ecr"
   providers = {
-    aws = aws.secondary
+    aws = aws.primary
   }
   name           = var.ecr_name
-  region         = var.secondary_region
+  region         = var.primary_region
+  replica_region = var.secondary_region
   docker_context = "./modules/lambda/function"
   tags = {
     Project = "Failover"
@@ -261,10 +252,11 @@ module "ecr" {
 module "frontend_ecr" {
   source         = "./modules/ecr"
   providers = {
-    aws = aws.secondary
+    aws = aws.primary
   }
   name           = "${var.ecr_name}-frontend"
   region         = var.primary_region
+  replica_region = var.secondary_region
   docker_context = "./frontend"
   tags = {
     Project = "Failover"
@@ -275,15 +267,29 @@ module "frontend_ecr" {
 module "backend_ecr" {
   source         = "./modules/ecr"
   providers = {
-    aws = aws.secondary
+    aws = aws.primary
   }
   name           = "${var.ecr_name}-backend"
   region         = var.primary_region
+  replica_region = var.secondary_region
   docker_context = "./backend"
   tags = {
     Project = "Failover"
     Env     = "prod"
   }
+}
+
+
+# ECR REPLICATION
+module "ecr_replication" {
+  source         = "./modules/ecr_replication"
+
+  providers = {
+    aws = aws.primary
+  }
+
+  prefix_filter  = var.ecr_name             
+  replica_region = var.secondary_region    
 }
 
 
@@ -430,7 +436,7 @@ module "failover_lambda" {
   }
 
   function_name = "failover-checker"
-  image_uri     = module.ecr.image_url
+  image_uri     = module.ecr_replication.replica_ecr_uris.trigger
 
   environment_variables = {
     APP_HEALTH_URL        = module.primary_alb.alb_dns_name

@@ -1,39 +1,21 @@
 #!/bin/bash
-
-# Update package list and upgrade system
-sudo apt-get update -y
-sudo apt-get upgrade -y
-
-# Install prerequisites
-sudo apt-get install -y \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release
-
-# Add Docker’s official GPG key
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-# Add Docker repository
-echo \
-  "deb [arch=$(dpkg --print-architecture) \
-  signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Update package list again
-sudo apt-get update -y
-
-# Install Docker Engine and Docker Compose Plugin
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Start Docker
+sudo yum update -y
+sudo amazon-linux-extras install docker -y
 sudo systemctl start docker
 sudo systemctl enable docker
+sudo usermod -a -G docker ec2-user
 
-# Verify Docker and Docker Compose installation
-docker --version
-docker compose version
+# Installing Docker Compose
+sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+
+# Apply executable permissions to the docker-compose binary
+sudo chmod +x /usr/local/bin/docker-compose
+
+# Add /usr/local/bin to the PATH in .bashrc
+echo 'export PATH=$PATH:/usr/local/bin' >> ~/.bashrc
+
+# Source .bashrc to update the current session
+source ~/.bashrc
+
+# Verify the installation
+docker-compose --version

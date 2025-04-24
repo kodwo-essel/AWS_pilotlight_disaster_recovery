@@ -56,3 +56,22 @@ resource "null_resource" "docker_build_and_push" {
 
   depends_on = [aws_ecr_repository.this]
 }
+
+
+# resource "aws_ecr_replication_configuration" "replication" {
+#   replication_configuration {
+#     rule {
+#       destination {
+#         region      = var.replica_region
+#         registry_id = data.aws_caller_identity.current.account_id
+#       }
+
+#       # Optional: Filter which repositories to replicate
+#       repository_filter {
+#         filter      = var.name
+#         filter_type = "PREFIX_MATCH" # Or "TAG_PREFIX_MATCH"
+#       }
+#     }
+#   }
+# }
+

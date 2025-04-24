@@ -20,7 +20,7 @@ resource "aws_ami_from_instance" "this" {
 
 resource "aws_ami_copy" "copy" {
   provider          = aws.secondary
-  name              = "var.ami_name"
+  name              = "${var.ami_name}-copy"
   description       = "DR Copy of AMI"
   source_ami_id     = aws_ami_from_instance.this.id
   source_ami_region = var.source_region

@@ -1,11 +1,11 @@
 services:
   backend:
     image: ${BACKEND_IMAGE_URI}  # This will use the BACKEND_IMAGE_URI environment variable
+    container_name: backend
     ports:
       - "8080:8080"
     restart: unless-stopped
-    env_file:
-      - ./backend.env
+
     environment:
       - S3_BUCKET_REGION=${S3_BUCKET_REGION}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
@@ -19,11 +19,11 @@ services:
 
   frontend:
     image: ${FRONTEND_IMAGE_URI}  # This will use the FRONTEND_IMAGE_URI environment variable
+    container_name: frontend
     ports:
       - "80:80"
     restart: unless-stopped
-    env_file:
-      - ./frontend.env
+
     depends_on:
       - backend
     environment:

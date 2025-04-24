@@ -15,6 +15,11 @@ variable "region" {
   type        = string
 }
 
+variable "replica_region" {
+  description = "Replica region"
+  type        = string
+}
+
 variable "docker_context" {
   description = "Path to Docker build context (e.g., . or ./lambda)"
   type        = string
