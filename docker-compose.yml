@@ -1,9 +1,11 @@
 services:
   backend:
-    image: your-dockerhub-username/springboot-app:latest
+    image: ${BACKEND_IMAGE_URI}  # This will use the BACKEND_IMAGE_URI environment variable
     ports:
       - "8080:8080"
     restart: unless-stopped
+    env_file:
+      - ./backend.env
     environment:
       - S3_BUCKET_REGION=${S3_BUCKET_REGION}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
@@ -16,10 +18,12 @@ services:
       - app-network
 
   frontend:
-    image: your-dockerhub-username/react-vite-app:latest
+    image: ${FRONTEND_IMAGE_URI}  # This will use the FRONTEND_IMAGE_URI environment variable
     ports:
       - "80:80"
     restart: unless-stopped
+    env_file:
+      - ./frontend.env
     depends_on:
       - backend
     environment:

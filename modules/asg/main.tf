@@ -6,6 +6,8 @@ terraform {
   }
 }
 
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
 
 # ASG IAM ROLE
 resource "aws_iam_role" "asg_instance_role" {
@@ -160,7 +162,9 @@ resource "aws_launch_template" "this" {
     FRONTEND_IMAGE_URI = var.frontend_image_uri,
     BACKEND_IMAGE_URI = var.backend_image_uri,
     S3_BUCKET_NAME=var.s3_bucket_name,
-    PATH_TO_DOCKER_COMPOSE=var.path_to_docker_compose
+    PATH_TO_DOCKER_COMPOSE=var.path_to_docker_compose,
+    ACCOUNT_ID = data.aws_caller_identity.current.account_id,
+    AWS_REGION = data.aws_region.current.name
   }))
 
   tag_specifications {

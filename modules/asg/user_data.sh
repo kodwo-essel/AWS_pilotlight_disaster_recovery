@@ -13,6 +13,10 @@ sudo apt-get install -y awscli
 # Specify the region dynamically (you can adjust this to your needs)
 export AWS_REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
 
+export ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text --region $AWS_REGION)
+
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
 # Fetch parameters using the dynamic region
 export S3_BUCKET_REGION=$(aws ssm get-parameter --name "/${ecr_name}-backend/S3_BUCKET_REGION" --query "Parameter.Value" --output text --region $AWS_REGION)
 export S3_BUCKET_NAME=$(aws ssm get-parameter --name "/${ecr_name}-backend/S3_BUCKET_NAME" --query "Parameter.Value" --output text --region $AWS_REGION)
@@ -23,10 +27,21 @@ export DB_USERNAME=$(aws ssm get-parameter --name "/${ecr_name}-backend/DB_USERN
 export DB_PASSWORD=$(aws ssm get-parameter --name "/${ecr_name}-backend/DB_PASSWORD" --with-decryption --query "Parameter.Value" --output text --region $AWS_REGION)
 
 
+echo "AWS_REGION=$AWS_REGION" >> /home/ubuntu/backend.env
+echo "S3_BUCKET_REGION=$S3_BUCKET_REGION" >> /home/ubuntu/backend.env
+echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> /home/ubuntu/backend.env
+echo "DB_HOST=$DB_HOST" >> /home/ubuntu/backend.env
+echo "DB_PORT=$DB_PORT" >> /home/ubuntu/backend.env
+echo "DB_NAME=$DB_NAME" >> /home/ubuntu/backend.env
+echo "DB_USERNAME=$DB_USERNAME" >> /home/ubuntu/backend.env
+echo "DB_PASSWORD=$DB_PASSWORD" >> /home/ubuntu/backend.env
+
+echo "VITE_PUBLIC_API_URL=http://backend:8080/api" >> /home/ubuntu/frontend.env
+
 
 # Pull Docker image passed via environment variable
-FRONTEND_IMAGE_URI="${FRONTEND_IMAGE_URI}"  # This will be templated via Terraform
-BACKEND_IMAGE_URI="${BACKEND_IMAGE_URI}"  # This will be templated via Terraform
+export FRONTEND_IMAGE_URI="${FRONTEND_IMAGE_URI}"  # This will be templated via Terraform
+export BACKEND_IMAGE_URI="${BACKEND_IMAGE_URI}"  # This will be templated via Terraform
 docker pull $FRONTEND_IMAGE_URI
 docker pull $BACKEND_IMAGE_URI
 

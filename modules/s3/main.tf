@@ -142,6 +142,7 @@ resource "aws_s3_bucket_policy" "source_public_read" {
       }
     ]
   })
+  depends_on = [aws_s3_bucket_public_access_block.source_block]
 }
 
 resource "aws_s3_bucket_policy" "destination_public_read" {
@@ -160,6 +161,7 @@ resource "aws_s3_bucket_policy" "destination_public_read" {
       }
     ]
   })
+  depends_on = [aws_s3_bucket_public_access_block.destination_block]
 }
 
 resource "aws_s3_bucket_public_access_block" "source_block" {
