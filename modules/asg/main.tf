@@ -49,12 +49,6 @@ resource "aws_security_group" "asg_sg" {
 }
 
 
-resource "aws_iam_instance_profile" "asg_instance_profile" {
-  name = "${var.name}-instance-profile"
-  role = var.iam_role_name
-}
-
-
 resource "aws_launch_template" "this" {
   name_prefix   = "${var.name}-lt"
   image_id      = var.ami_id
@@ -64,7 +58,7 @@ resource "aws_launch_template" "this" {
   vpc_security_group_ids = [aws_security_group.asg_sg.id]
 
   iam_instance_profile {
-    name = aws_iam_instance_profile.asg_instance_profile.name
+    name = var.instance_profile_name
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {

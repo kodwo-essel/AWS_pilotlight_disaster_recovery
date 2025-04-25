@@ -109,6 +109,16 @@ module "asg_iam_role" {
   name = var.ec2_name
   
 }
+
+# INSTANCE PROFILE
+module "instance_profile" {
+    source = "./modules/instance_profile"
+    providers = {
+        aws = aws.primary
+    }
+    name = var.ec2_name
+    iam_role_name = module.asg_iam_role.role_name
+}
 # PRIMARY AUTO SCALING GROUP
 module "primary_asg" {
     source = "./modules/asg"
@@ -127,12 +137,13 @@ module "primary_asg" {
     s3_bucket_name = module.s3.source_bucket
     path_to_docker_compose = "docker-compose.yml"
     iam_role_name = module.asg_iam_role.role_name
+    instance_profile_name = module.instance_profile.instance_profile_name
 
     desired_capacity = var.primary_asg_desired_capacity
     min_size         = var.primary_asg_min_size
     max_size         = var.primary_asg_max_size
 
-    target_group_arns = [module.primary_alb.target_group_arn]
+    target_group_arns = [module.primary_alb.frontend_target_group_arn, module.primary_alb.backend_target_group_arn]
 
     depends_on = [ module.primary_parameter_store, module.rds, module.frontend_ecr, module.backend_ecr, module.s3, aws_s3_object.docker_compose ]
 
@@ -156,12 +167,13 @@ module "secondary_asg" {
     s3_bucket_name = module.s3.replica_bucket
     path_to_docker_compose = "docker-compose.yml"
     iam_role_name = module.asg_iam_role.role_name
+    instance_profile_name = module.instance_profile.instance_profile_name
 
     desired_capacity = var.secondary_asg_desired_capacity
     min_size         = var.secondary_asg_min_size
     max_size         = var.secondary_asg_max_size
 
-    target_group_arns = [module.secondary_alb.target_group_arn]
+    target_group_arns = [module.secondary_alb.frontend_target_group_arn, module.secondary_alb.backend_target_group_arn]
 
     depends_on = [ module.secondary_parameter_store, module.rds, module.frontend_ecr, module.backend_ecr, module.s3, aws_s3_object.docker_compose ]
 }
@@ -208,6 +220,7 @@ module "rds" {
     allocated_storage    = var.rds_allocated_storage
     username         = var.rds_db_username
     password = var.rds_db_password
+    db_name = var.rds_db_name
     allowed_cidrs = [module.primary_vpc.vpc_cidr]
 }
 
@@ -336,7 +349,7 @@ module "primary_parameter_store" {
     {
       name        = "/${var.ecr_name}-backend/DB_NAME"
       type        = "String"
-      value       = var.rds_name
+      value       = module.rds.database_name
       tags        = { Component = "backend" }
     },
     {
@@ -403,7 +416,7 @@ module "secondary_parameter_store" {
     {
       name        = "/${var.ecr_name}-backend/DB_NAME"
       type        = "String"
-      value       = var.rds_name
+      value       = module.rds.database_name
       tags        = { Component = "backend" }
     },
     {
@@ -449,4 +462,19 @@ module "failover_lambda" {
   }
 
   depends_on = [ module.primary_asg, module.secondary_asg, module.ecr, module.rds ]
+}
+
+
+# GLOBAL ACCELERATION
+module "global_accelerator" {
+  source = "./modules/global_accelerator"
+
+  providers = {
+    aws = aws.primary
+  }
+  primary_alb_arn = module.primary_alb.frontend_target_group_arn
+  secondary_alb_arn = module.secondary_alb.frontend_target_group_arn
+  primary_region = var.primary_region
+  secondary_region = var.secondary_region
+  accelerator_name = "${var.ec2_name}-global-accelerator"
 }

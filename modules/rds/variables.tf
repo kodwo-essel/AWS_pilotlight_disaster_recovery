@@ -53,3 +53,8 @@ variable "allowed_cidrs" {
   description = "CIDR blocks allowed to access RDS (e.g., from EC2 or ALB)"
   type        = list(string)
 }
+
+variable "db_name" {
+  type = string
+  
+}

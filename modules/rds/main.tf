@@ -47,6 +47,7 @@ resource "aws_db_instance" "primary" {
   engine                  = "postgres"
   engine_version          = var.engine_version
   instance_class          = var.instance_class
+  db_name                 = var.db_name
   username                = var.username
   password                = var.password
   db_subnet_group_name    = aws_db_subnet_group.this.name

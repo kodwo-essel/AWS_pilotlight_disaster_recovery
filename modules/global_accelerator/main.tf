@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+    }
+  }
+}
+
 resource "aws_globalaccelerator_accelerator" "main" {
   name            = var.accelerator_name
   ip_address_type = "IPV4"

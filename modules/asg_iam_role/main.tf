@@ -72,7 +72,14 @@ resource "aws_iam_policy" "s3_read_policy" {
     Statement = [
       {
         Effect    = "Allow"
-        Action    = "s3:GetObject"
+        Action   = [
+          "s3:GetObject",       # Read
+          "s3:PutObject",       # Create/Update
+          "s3:DeleteObject",    # Delete
+          "s3:ListBucket",      # Optional: List contents of the bucket
+          "s3:GetObjectAcl",    # Optional: Read ACL
+          "s3:PutObjectAcl"     # Optional: Write ACL
+        ]
         Resource  = "*"
       }
     ]

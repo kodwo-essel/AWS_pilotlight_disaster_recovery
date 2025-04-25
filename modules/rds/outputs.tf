@@ -2,12 +2,17 @@ output "primary_instance_id" {
   value = aws_db_instance.primary.id
 }
 
-output "read_replica_id" {
-  value = aws_db_instance.read_replica.id
+output "primary_instance_identifier" {
+  value = aws_db_instance.primary.identifier
+  
 }
-
 output "read_replica_identifier" {
   value = aws_db_instance.read_replica.identifier
+}
+
+output "database_name" {
+  value = aws_db_instance.primary.db_name
+  
 }
 
 output "rds_endpoint" {
