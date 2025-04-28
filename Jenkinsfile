@@ -23,6 +23,8 @@ pipeline {
                     // Inject the terraform.tfvars file
                     sh "cp -f \"${TFVARS_FILE}\" terraform.tfvars"
                     echo 'terraform.tfvars injected.'
+                    sh 'ls'
+                    sh 'cat terraform.tfvars'
                 }
                 
             }
