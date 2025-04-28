@@ -3,16 +3,26 @@ variable "name" {
   type        = string
 }
 
-variable "vpc_id" {
+variable "primary_vpc_id" {
   description = "VPC ID for the RDS and security group"
   type        = string
 }
 
-variable "subnet_ids" {
+variable "primary_subnet_ids" {
   description = "Subnets for RDS subnet group"
   type        = list(string)
 }
 
+variable "replica_vpc_id" {
+  description = "VPC ID for the replica region"
+  type = string
+}
+
+variable "replica_subnet_ids" {
+  description = "Subnets for RDS Replica subnet group"
+  type = list(string)
+  
+}
 variable "allocated_storage" {
   type        = number
   default     = 20

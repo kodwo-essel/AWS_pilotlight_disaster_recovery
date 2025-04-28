@@ -124,3 +124,19 @@ variable "vite_public_api_url" {
 variable "rds_port" {
   type = string
 }
+
+variable "primary_backend_image_uri" {
+  type = string
+}
+
+variable "primary_frontend_image_uri" {
+  type = string
+}
+
+variable "secondary_backend_image_uri" {
+  type = string
+}
+
+variable "secondary_frontend_image_uri" {
+  type = string
+}

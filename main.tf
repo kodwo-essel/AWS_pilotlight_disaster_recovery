@@ -132,8 +132,8 @@ module "primary_asg" {
     vpc_id = module.primary_vpc.vpc_id
     subnet_ids       = module.primary_vpc.public_subnet_ids
     ecr_name = var.ecr_name
-    frontend_image_uri = module.frontend_ecr.image_url
-    backend_image_uri = module.backend_ecr.image_url
+    frontend_image_uri = var.primary_frontend_image_uri
+    backend_image_uri = var.primary_backend_image_uri
     s3_bucket_name = module.s3.source_bucket
     path_to_docker_compose = "docker-compose.yml"
     iam_role_name = module.asg_iam_role.role_name
@@ -145,7 +145,7 @@ module "primary_asg" {
 
     target_group_arns = [module.primary_alb.frontend_target_group_arn, module.primary_alb.backend_target_group_arn]
 
-    depends_on = [ module.primary_parameter_store, module.rds, module.frontend_ecr, module.backend_ecr, module.s3, aws_s3_object.docker_compose ]
+    depends_on = [ module.primary_parameter_store, module.rds, module.s3, aws_s3_object.docker_compose ]
 
 }
 
@@ -162,8 +162,8 @@ module "secondary_asg" {
     vpc_id = module.secondary_vpc.vpc_id
     subnet_ids       = module.secondary_vpc.public_subnet_ids
     ecr_name = var.ecr_name
-    frontend_image_uri = module.ecr_replication.replica_ecr_uris.frontend
-    backend_image_uri = module.ecr_replication.replica_ecr_uris.backend
+    frontend_image_uri = var.secondary_backend_image_uri
+    backend_image_uri = var.secondary_frontend_image_uri
     s3_bucket_name = module.s3.replica_bucket
     path_to_docker_compose = "docker-compose.yml"
     iam_role_name = module.asg_iam_role.role_name
@@ -175,7 +175,7 @@ module "secondary_asg" {
 
     target_group_arns = [module.secondary_alb.frontend_target_group_arn, module.secondary_alb.backend_target_group_arn]
 
-    depends_on = [ module.secondary_parameter_store, module.rds, module.frontend_ecr, module.backend_ecr, module.s3, aws_s3_object.docker_compose ]
+    depends_on = [ module.secondary_parameter_store, module.rds, module.s3, aws_s3_object.docker_compose ]
 }
 
 # PRIMARY APPLICATION LOAD BALANCER
@@ -210,8 +210,10 @@ module "rds" {
         aws = aws.primary
     }
     name                = var.rds_name
-    vpc_id              = module.primary_vpc.vpc_id
-    subnet_ids          = module.primary_vpc.private_subnet_ids
+    primary_vpc_id              = module.primary_vpc.vpc_id
+    replica_vpc_id = module.secondary_vpc.vpc_id
+    primary_subnet_ids          = module.primary_vpc.private_subnet_ids
+    replica_subnet_ids = module.secondary_vpc.private_subnet_ids
     engine_version = var.rds_engine_version
     primary_az = module.primary_vpc.availability_zones[0]
     replica_region = var.secondary_region
@@ -262,35 +264,35 @@ module "ecr" {
   }
 }
 
-module "frontend_ecr" {
-  source         = "./modules/ecr"
-  providers = {
-    aws = aws.primary
-  }
-  name           = "${var.ecr_name}-frontend"
-  region         = var.primary_region
-  replica_region = var.secondary_region
-  docker_context = "./frontend"
-  tags = {
-    Project = "Failover"
-    Env     = "prod"
-  }
-}
+# module "frontend_ecr" {
+#   source         = "./modules/ecr"
+#   providers = {
+#     aws = aws.primary
+#   }
+#   name           = "${var.ecr_name}-frontend"
+#   region         = var.primary_region
+#   replica_region = var.secondary_region
+#   docker_context = "./frontend"
+#   tags = {
+#     Project = "Failover"
+#     Env     = "prod"
+#   }
+# }
 
-module "backend_ecr" {
-  source         = "./modules/ecr"
-  providers = {
-    aws = aws.primary
-  }
-  name           = "${var.ecr_name}-backend"
-  region         = var.primary_region
-  replica_region = var.secondary_region
-  docker_context = "./backend"
-  tags = {
-    Project = "Failover"
-    Env     = "prod"
-  }
-}
+# module "backend_ecr" {
+#   source         = "./modules/ecr"
+#   providers = {
+#     aws = aws.primary
+#   }
+#   name           = "${var.ecr_name}-backend"
+#   region         = var.primary_region
+#   replica_region = var.secondary_region
+#   docker_context = "./backend"
+#   tags = {
+#     Project = "Failover"
+#     Env     = "prod"
+#   }
+# }
 
 
 # ECR REPLICATION
@@ -472,8 +474,8 @@ module "global_accelerator" {
   providers = {
     aws = aws.primary
   }
-  primary_alb_arn = module.primary_alb.frontend_target_group_arn
-  secondary_alb_arn = module.secondary_alb.frontend_target_group_arn
+  primary_alb_arn = module.primary_alb.alb_arn
+  secondary_alb_arn = module.secondary_alb.alb_arn
   primary_region = var.primary_region
   secondary_region = var.secondary_region
   accelerator_name = "${var.ec2_name}-global-accelerator"

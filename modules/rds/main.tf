@@ -10,7 +10,7 @@ terraform {
 resource "aws_security_group" "rds" {
   name        = "${var.name}-rds-sg"
   description = "Security group for RDS ${var.name}"
-  vpc_id      = var.vpc_id
+  vpc_id      = var.primary_vpc_id
 
   ingress {
     from_port   = 5432
@@ -31,12 +31,51 @@ resource "aws_security_group" "rds" {
   }
 }
 
+
+# Create a security group in the replica region
+resource "aws_security_group" "rds_replica" {
+  provider    = aws.replica
+  name        = "${var.name}-rds-replica-sg"
+  description = "Security group for RDS replica ${var.name}"
+  vpc_id      = var.replica_vpc_id  # You need to provide the VPC ID in the replica region
+
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = var.allowed_cidrs
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.name}-rds-replica-sg"
+  }
+}
+
+
 resource "aws_db_subnet_group" "this" {
   name       = "${var.name}-subnet-group"
-  subnet_ids = var.subnet_ids
+  subnet_ids = var.primary_subnet_ids
 
   tags = {
     Name = "${var.name}-subnet-group"
+  }
+}
+
+# CREATE SUBNET GROUPS FOR THE REPLICA REGION
+resource "aws_db_subnet_group" "replica" {
+  provider   = aws.replica
+  name       = "${var.name}-replica-subnet-group"
+  subnet_ids = var.replica_subnet_ids
+
+  tags = {
+    Name = "${var.name}-replica-subnet-group"
   }
 }
 
@@ -77,6 +116,8 @@ resource "aws_db_instance" "read_replica" {
   replicate_source_db      = aws_db_instance.primary.arn
   skip_final_snapshot      = true
   availability_zone        = var.replica_az
+  vpc_security_group_ids   = [aws_security_group.rds_replica.id]
+  db_subnet_group_name     = aws_db_subnet_group.replica.name
   depends_on               = [aws_db_instance.primary]
 
   tags = {
