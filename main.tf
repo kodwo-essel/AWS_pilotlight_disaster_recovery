@@ -163,8 +163,8 @@ module "secondary_asg" {
     vpc_id = module.secondary_vpc.vpc_id
     subnet_ids       = module.secondary_vpc.public_subnet_ids
     ecr_name = var.ecr_name
-    frontend_image_uri = var.secondary_backend_image_uri
-    backend_image_uri = var.secondary_frontend_image_uri
+    frontend_image_uri = var.secondary_frontend_image_uri
+    backend_image_uri = var.secondary_backend_image_uri
     s3_bucket_name = module.s3.replica_bucket
     path_to_docker_compose = "docker-compose.yml"
     iam_role_name = module.asg_iam_role.role_name
@@ -481,3 +481,98 @@ module "global_accelerator" {
   secondary_region = var.secondary_region
   accelerator_name = "${var.ec2_name}-global-accelerator"
 }
+
+# MONITORING
+
+# SNS FORWARDER
+module "sns_forwarder" {
+  source = "./modules/sns"
+  providers = {
+    aws = aws.primary
+  }
+
+  name = "sns-forwarder"
+  lambda_function_arn = module.failover_lambda.lambda_arn
+}
+
+module "lambda_permission" {
+  source = "./modules/lambda_permission"
+
+  providers = {
+    aws = aws.secondary
+  }
+
+  sns_topic_arn = module.sns_forwarder.sns_arn
+  lambda_function_name = module.failover_lambda.lambda_name
+  
+}
+
+module "load_balancer_alarm_frontend" {
+  source             = "./modules/cloudwatch_alarm"
+
+  providers = {
+    aws = aws.primary
+  }
+  name               = "load-balancer-target-deregistration-frontend"
+  namespace          = "AWS/ApplicationELB"
+  metric_name        = "UnHealthyHostCount"
+  threshold          = 1  # Alarm threshold for unhealthy hosts
+  sns_forwarder_arn = module.sns_forwarder.sns_arn
+
+  dimensions = {
+    TargetGroup = module.primary_alb.frontend_tg_arn_suffix
+    LoadBalancer = module.primary_alb.alb_arn_suffix
+  }
+}
+
+module "load_balancer_alarm_backend" {
+  source             = "./modules/cloudwatch_alarm"
+
+  providers = {
+    aws = aws.primary
+  }
+  name               = "load-balancer-target-deregistration-backend"
+  namespace          = "AWS/ApplicationELB"
+  metric_name        = "UnHealthyHostCount"
+  threshold          = 1  # Alarm threshold for unhealthy hosts
+  sns_forwarder_arn = module.sns_forwarder.sns_arn
+
+  dimensions = {
+    TargetGroup = module.primary_alb.backend_tg_arn_suffix
+    LoadBalancer = module.primary_alb.alb_arn_suffix
+  }
+}
+
+
+# module "rds_alarm" {
+#   source             = "./modules/cloudwatch_alarm"
+
+#   providers = {
+#     aws = aws.primary
+#   }
+#   name               = "rds-database-availability"
+#   namespace          = "AWS/RDS"
+#   metric_name        = "DatabaseConnections"
+#   threshold          = 5
+#   sns_forwarder_arn = module.sns_forwarder.sns_arn
+
+#   dimensions = {
+#     DBInstanceIdentifier = module.rds.primary_instance_identifier
+#   }
+# }
+
+# module "asg_alarm" {
+#   source             = "./modules/cloudwatch_alarm"
+#   providers = {
+#     aws = aws.primary
+#   }
+
+#   name               = "desired-capacity-alarm"
+#   namespace          = "AWS/AutoScaling"
+#   metric_name        = "GroupDesiredCapacity"
+#   threshold          = 0
+#   sns_forwarder_arn  = module.sns_forwarder.sns_arn
+#   dimensions = {
+#     AutoScalingGroupName = module.primary_asg.asg_name
+#   }
+# }
