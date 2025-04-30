@@ -32,3 +32,9 @@ resource "aws_sns_topic_subscription" "lambda_subscription" {
   protocol  = "lambda"
   endpoint  = var.lambda_function_arn  # ARN of the Lambda function in another region
 }
+
+resource "aws_sns_topic_subscription" "email_alert" {
+  topic_arn = aws_sns_topic.alarm_forwarder.arn
+  protocol  = "email"
+  endpoint  = "jimmy.essel@amalitech.com"  # Replace with your email
+}

@@ -443,16 +443,6 @@ module "secondary_parameter_store" {
   }
 }
 
-# SES
-module "ses" {
-  source = "./modules/ses"
-
-  providers = {
-    aws = aws.secondary
-  }
-
-  email_identity = var.email_address
-}
 # LAMBDA FUNCTION
 module "failover_lambda" {
   source = "./modules/lambda"
@@ -476,7 +466,7 @@ module "failover_lambda" {
     EMAIL_ADDRESS          = var.email_address
   }
 
-  depends_on = [ module.primary_asg, module.secondary_asg, module.ecr, module.rds, module.ses, module.primary_alb, module.secondary_alb]
+  depends_on = [ module.primary_asg, module.secondary_asg, module.ecr, module.rds, module.primary_alb, module.secondary_alb]
 }
 
 

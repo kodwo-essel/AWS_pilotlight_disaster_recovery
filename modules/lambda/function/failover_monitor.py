@@ -22,7 +22,6 @@ EMAIL_ADDRESS = os.environ["EMAIL_ADDRESS"]
 # AWS clients
 asg_client = boto3.client('autoscaling', region_name=SECONDARY_REGION_NAME)
 rds_client = boto3.client('rds', region_name=SECONDARY_REGION_NAME)
-ses_client = boto3.client('ses', region_name=SECONDARY_REGION_NAME)
 
 def ping():
     try:
@@ -32,39 +31,10 @@ def ping():
     except Exception as e:
         print(f"Health check failed: {e}")
         return False
-    
 
-# SEND email with SES
-def send_email_with_ses(sender, recipient, subject, body_text):
-    try:
-        response = ses_client.send_email(
-            Source=sender,
-            Destination={'ToAddresses': [recipient]},
-            Message={
-                'Subject': {'Data': subject},
-                'Body': {
-                    'Text': {'Data': body_text}
-                }
-            }
-        )
-        print("Email sent! Message ID:", response['MessageId'])
-        return response
-    except Exception as e:
-        print(f"Error sending email: {e}")
-        return None
 
 def trigger_failover():
     print("Triggering failover...")
-
-    # Email Notification of failoverprimary failure and start of failover
-    send_email_with_ses(
-        sender=EMAIL_ADDRESS,
-        recipient=EMAIL_ADDRESS,
-        subject="Application Down. Failover Initiated",
-        body_text="Hello, the primary system for the pilot light failover application is down and automatic failover has been initiated."
-    )
-
-
     # Promote RDS Read Replica
     try:
         rds_client.promote_read_replica(
@@ -85,14 +55,6 @@ def trigger_failover():
     except Exception as e:
         print(f"ASG scale-up failed: {e}")
 
-
-    # Email confirmation of successful failover
-    send_email_with_ses(
-        sender=EMAIL_ADDRESS,
-        recipient=EMAIL_ADDRESS,
-        subject="Failover Complete",
-        body_text="Hello, the secondary system for the pilot light disaster recovery system has been spun up and application restored successfully."
-    )
 
 def lambda_handler(event, context):
     healthy = False
