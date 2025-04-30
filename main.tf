@@ -443,6 +443,16 @@ module "secondary_parameter_store" {
   }
 }
 
+# SES
+module "ses" {
+  source = "./modules/ses"
+
+  providers = {
+    aws = aws.secondary
+  }
+
+  email_identity = var.email_address
+}
 # LAMBDA FUNCTION
 module "failover_lambda" {
   source = "./modules/lambda"
@@ -456,15 +466,17 @@ module "failover_lambda" {
 
   environment_variables = {
     APP_HEALTH_URL        = module.primary_alb.alb_dns_name
+    SECONDARY_APP_HEALTH_URL = module.secondary_alb.alb_dns_name
     RETRY_COUNT           = "3"
     RETRY_INTERVAL        = "60"
     ASG_NAME              = module.secondary_asg.asg_name
     RDS_REPLICA_IDENTIFIER = module.rds.read_replica_identifier
     SECONDARY_REGION_NAME  = var.secondary_region
     PRIMARY_REGION_NAME    = var.primary_region
+    EMAIL_ADDRESS          = var.email_address
   }
 
-  depends_on = [ module.primary_asg, module.secondary_asg, module.ecr, module.rds ]
+  depends_on = [ module.primary_asg, module.secondary_asg, module.ecr, module.rds, module.ses, module.primary_alb, module.secondary_alb]
 }
 
 

@@ -18,7 +18,7 @@ resource "aws_cloudwatch_metric_alarm" "this" {
   alarm_description        = "Alarm when ${var.metric_name} exceeds threshold"
   alarm_actions            = [var.sns_forwarder_arn]
 
-  treat_missing_data = "breaching"
+  treat_missing_data = "notBreaching"
 
   dimensions = var.dimensions
 }

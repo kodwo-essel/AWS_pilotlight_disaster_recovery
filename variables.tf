@@ -140,3 +140,7 @@ variable "secondary_backend_image_uri" {
 variable "secondary_frontend_image_uri" {
   type = string
 }
+
+variable "email_address" {
+  type = string
+}
