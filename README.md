@@ -37,7 +37,7 @@ The DR project in AWS adopts the Pilot Light strategy, maintaining a minimal set
 
 The overall architecture implements a cross-region disaster recovery solution with automated failover capabilities:
 
-![DR Infrastructure Architecture](image_assets/DR%20INFRASTRUCTURE-8.jpg "AWS Multi-Region DR Architecture")
+![DR Infrastructure Architecture](images/archdiagram.png "AWS Multi-Region DR Architecture")
 
 To reduce latency and ensure availability, it is recommended that if Amazon ECR is used for container images, the repositories be replicated across both regions involved in the disaster recovery setup.
 
